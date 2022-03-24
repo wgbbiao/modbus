@@ -1,4 +1,4 @@
-package main
+package modbus
 
 import (
 	"fmt"
@@ -71,6 +71,17 @@ func (c *Client) Send(data []byte) ([]byte, error) {
 
 func (c *Client) Close() {
 	c.serialPort.Close()
+}
+
+// 重新连接
+func (c *Client) Reconnect() error {
+	c.serialPort.Close()
+	s, err := serial.OpenPort(c.serialPortConfig)
+	if err != nil {
+		return err
+	}
+	c.serialPort = s
+	return nil
 }
 
 func (sf *Client) calculateDelay(chars int) time.Duration {
