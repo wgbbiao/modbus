@@ -21,10 +21,10 @@ func TestClient(t *testing.T) {
 		t.Error(err)
 	}
 	{
-		fmt.Println(time.Now())
-		res, err := c.ReadCoils(byte(01), 0, 20)
-		fmt.Println(time.Now())
-		fmt.Println(res, err)
+		// res, err := c.ReadCoils(10, 0, 20)
+		// fmt.Println(res, err)
+		err := c.WriteSingleCoil(10, 4, false)
+		fmt.Println(err)
 	}
 
 }

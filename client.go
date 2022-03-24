@@ -90,9 +90,24 @@ func (c *Client) EnableLog() {
 	c.showLog = true
 }
 
-// WriteSingleCoil write a single output to either ON or OFF in a
-// remote device and returns success or failed.
+// WriteSingleCoil在远程设备中将单个输出写入ON或OFF，并返回成功或失败。
 func (c *Client) WriteSingleCoil(slaveID byte, address uint16, isOn bool) error {
+	var value uint16
+	if isOn { // The requested ON/OFF state can only be 0xFF00 and 0x0000
+		value = 0xFF00
+	}
+	data := []byte{slaveID, FuncCodeWriteSingleCoil}
+	data = append(data, uint162Bytes(address, value)...)
+	data = crc16(data)
+	res, err := c.Send(data)
+
+	if c.showLog {
+		log.Printf("ReadCoils: 接收[% x]", res)
+	}
+
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -108,8 +123,7 @@ func (c *Client) ReadHoldingRegisters(slaveID byte, address, quantity uint16) (r
 	return nil, nil
 }
 
-// ReadCoils reads from 1 to 2000 contiguous status of coils in a
-// remote device and returns coil status.
+// ReadCoils读取远程设备中线圈的1到2000个连续状态，并返回线圈状态。
 func (c *Client) ReadCoils(slaveID byte, address, quantity uint16) (results []byte, err error) {
 	data := []byte{slaveID, FuncCodeReadCoils}
 	data = append(data, uint162Bytes(address, quantity)...)
@@ -135,8 +149,7 @@ func (c *Client) ReadCoils(slaveID byte, address, quantity uint16) (results []by
 	return res[3 : len(res)-2], err
 }
 
-// ReadDiscreteInputs reads from 1 to 2000 contiguous status of
-// discrete inputs in a remote device and returns input status.
+// ReadDiscreteInputs读取从1到2000连续状态的远程设备中的离散输入，并返回输入状态.
 func (c *Client) ReadDiscreteInputs(slaveID byte, address, quantity uint16) (results []byte, err error) {
 	return nil, nil
 }
