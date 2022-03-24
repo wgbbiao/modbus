@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/tarm/serial"
@@ -26,6 +27,7 @@ type Client struct {
 	showLog          bool
 
 	BaudRate int
+	ml       sync.Mutex
 }
 
 func NewClient(c *serial.Config) (*Client, error) {
@@ -39,6 +41,8 @@ func NewClient(c *serial.Config) (*Client, error) {
 //发送
 func (c *Client) Send(data []byte) ([]byte, error) {
 	// 清空缓冲区
+	c.ml.Lock()
+	defer c.ml.Unlock()
 	c.serialPort.Flush()
 	n, err := c.serialPort.Write(data)
 	if err != nil {
