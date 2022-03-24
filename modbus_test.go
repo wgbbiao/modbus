@@ -20,11 +20,12 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	{
+	for {
 		// res, err := c.ReadCoils(10, 0, 20)
 		// fmt.Println(res, err)
-		res, err := c.ReadHoldingRegisters(13, 0, 16)
+		res, err := c.ReadHoldingRegisters(9, 0, 2)
 		fmt.Println(res, err)
+		time.Sleep(time.Second * 1)
 	}
 
 }
