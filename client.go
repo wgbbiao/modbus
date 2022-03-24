@@ -38,9 +38,6 @@ func NewClient(c *serial.Config) (*Client, error) {
 
 //发送
 func (c *Client) Send(data []byte) ([]byte, error) {
-	if c.showLog {
-		log.Printf("ReadCoils: 发送[% x]", data)
-	}
 	// 清空缓冲区
 	c.serialPort.Flush()
 	n, err := c.serialPort.Write(data)
@@ -90,7 +87,7 @@ func (c *Client) EnableLog() {
 	c.showLog = true
 }
 
-// WriteSingleCoil在远程设备中将单个输出写入ON或OFF，并返回成功或失败。
+// WriteSingleCoil 在远程设备中将单个输出写入ON或OFF，并返回成功或失败。
 func (c *Client) WriteSingleCoil(slaveID byte, address uint16, isOn bool) error {
 	var value uint16
 	if isOn { // The requested ON/OFF state can only be 0xFF00 and 0x0000
@@ -99,10 +96,13 @@ func (c *Client) WriteSingleCoil(slaveID byte, address uint16, isOn bool) error 
 	data := []byte{slaveID, FuncCodeWriteSingleCoil}
 	data = append(data, uint162Bytes(address, value)...)
 	data = crc16(data)
+	if c.showLog {
+		log.Printf("WriteSingleCoil: 发送[% x]", data)
+	}
 	res, err := c.Send(data)
 
 	if c.showLog {
-		log.Printf("ReadCoils: 接收[% x]", res)
+		log.Printf("WriteSingleCoil: 接收[% x]", res)
 	}
 
 	if err != nil {
@@ -111,16 +111,48 @@ func (c *Client) WriteSingleCoil(slaveID byte, address uint16, isOn bool) error 
 	return nil
 }
 
-// WriteSingleRegister writes a single holding register in a remote
-// device and returns success or failed.
+// WriteSingleRegister 在远程设备中写入单个保留寄存器，并返回成功或失败。
 func (c *Client) WriteSingleRegister(slaveID byte, address, value uint16) error {
-	return nil
+	data := []byte{slaveID, FuncCodeWriteSingleRegister}
+	data = append(data, uint162Bytes(address, value)...)
+	data = crc16(data)
+	if c.showLog {
+		log.Printf("WriteSingleRegister: 发送[% x]", data)
+	}
+	res, err := c.Send(data)
+	if c.showLog {
+		log.Printf("WriteSingleRegister: 接收[% x]", res)
+	}
+	return err
 }
 
-// ReadHoldingRegisters reads the contents of a contiguous block of
-// holding registers in a remote device and returns register value.
+// ReadHoldingRegisters 读取远程设备中连续的保持寄存器块的内容，并返回寄存器值。
 func (c *Client) ReadHoldingRegisters(slaveID byte, address, quantity uint16) (results []uint16, err error) {
-	return nil, nil
+	data := []byte{slaveID, FuncCodeReadHoldingRegisters}
+	data = append(data, uint162Bytes(address, quantity)...)
+	data = crc16(data)
+	if c.showLog {
+		log.Printf("ReadHoldingRegisters: 发送[% x]", data)
+	}
+	res, err := c.Send(data)
+
+	if c.showLog {
+		log.Printf("ReadHoldingRegisters: 接收[% x]", res)
+	}
+	//取出数据
+	if err != nil {
+		return nil, err
+	}
+	if len(res) < 4 {
+		return nil, fmt.Errorf("数据长度不够")
+	}
+	if res[0] != slaveID {
+		return nil, fmt.Errorf("从机ID不一致")
+	}
+	if res[1] != FuncCodeReadCoils {
+		return nil, fmt.Errorf("功能码不一致")
+	}
+	return bytes2Uint16(res[3 : len(res)-2]), err
 }
 
 // ReadCoils读取远程设备中线圈的1到2000个连续状态，并返回线圈状态。
@@ -128,6 +160,9 @@ func (c *Client) ReadCoils(slaveID byte, address, quantity uint16) (results []by
 	data := []byte{slaveID, FuncCodeReadCoils}
 	data = append(data, uint162Bytes(address, quantity)...)
 	data = crc16(data)
+	if c.showLog {
+		log.Printf("ReadCoils: 发送[% x]", data)
+	}
 	res, err := c.Send(data)
 
 	if c.showLog {
@@ -149,7 +184,32 @@ func (c *Client) ReadCoils(slaveID byte, address, quantity uint16) (results []by
 	return res[3 : len(res)-2], err
 }
 
-// ReadDiscreteInputs读取从1到2000连续状态的远程设备中的离散输入，并返回输入状态.
+// ReadDiscreteInputs 读取从1到2000连续状态的远程设备中的离散输入，并返回输入状态.
 func (c *Client) ReadDiscreteInputs(slaveID byte, address, quantity uint16) (results []byte, err error) {
-	return nil, nil
+	data := []byte{slaveID, FuncCodeReadCoils}
+	data = append(data, uint162Bytes(address, quantity)...)
+	data = crc16(data)
+	if c.showLog {
+		log.Printf("ReadDiscreteInputs: 发送[% x]", data)
+	}
+	res, err := c.Send(data)
+
+	if c.showLog {
+		log.Printf("ReadDiscreteInputs: 接收[% x]", res)
+	}
+
+	//取出数据
+	if err != nil {
+		return nil, err
+	}
+	if len(res) < 4 {
+		return nil, fmt.Errorf("数据长度不够")
+	}
+	if res[0] != slaveID {
+		return nil, fmt.Errorf("从机ID不一致")
+	}
+	if res[1] != FuncCodeReadCoils {
+		return nil, fmt.Errorf("功能码不一致")
+	}
+	return res[3 : len(res)-2], err
 }

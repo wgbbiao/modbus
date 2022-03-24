@@ -18,6 +18,15 @@ func uint162Bytes(value ...uint16) []byte {
 	return data
 }
 
+// bytes2Uint16 bytes convert to uint16 for register.
+func bytes2Uint16(buf []byte) []uint16 {
+	data := make([]uint16, 0, len(buf)/2)
+	for i := 0; i < len(buf)/2; i++ {
+		data = append(data, binary.BigEndian.Uint16(buf[i*2:]))
+	}
+	return data
+}
+
 // for CRC-16/MODBUS
 func crc16(data []byte) []byte {
 	var crc16 uint16 = 0xFFFF
