@@ -164,7 +164,7 @@ func (c *Client) ReadHoldingRegisters(slaveID byte, address, quantity uint16) (r
 	if res[0] != slaveID {
 		return nil, fmt.Errorf("从机ID不一致")
 	}
-	if res[1] != FuncCodeReadCoils {
+	if res[1] != FuncCodeReadHoldingRegisters {
 		return nil, fmt.Errorf("功能码不一致")
 	}
 	return bytes2Uint16(res[3 : len(res)-2]), err
@@ -201,7 +201,7 @@ func (c *Client) ReadCoils(slaveID byte, address, quantity uint16) (results []by
 
 // ReadDiscreteInputs 读取从1到2000连续状态的远程设备中的离散输入，并返回输入状态.
 func (c *Client) ReadDiscreteInputs(slaveID byte, address, quantity uint16) (results []byte, err error) {
-	data := []byte{slaveID, FuncCodeReadCoils}
+	data := []byte{slaveID, FuncCodeReadDiscreteInputs}
 	data = append(data, uint162Bytes(address, quantity)...)
 	data = crc16(data)
 	if c.showLog {
@@ -223,7 +223,7 @@ func (c *Client) ReadDiscreteInputs(slaveID byte, address, quantity uint16) (res
 	if res[0] != slaveID {
 		return nil, fmt.Errorf("从机ID不一致")
 	}
-	if res[1] != FuncCodeReadCoils {
+	if res[1] != FuncCodeReadDiscreteInputs {
 		return nil, fmt.Errorf("功能码不一致")
 	}
 	return res[3 : len(res)-2], err

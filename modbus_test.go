@@ -23,8 +23,8 @@ func TestClient(t *testing.T) {
 	{
 		// res, err := c.ReadCoils(10, 0, 20)
 		// fmt.Println(res, err)
-		err := c.WriteSingleCoil(10, 4, false)
-		fmt.Println(err)
+		res, err := c.ReadHoldingRegisters(13, 0, 16)
+		fmt.Println(res, err)
 	}
 
 }
