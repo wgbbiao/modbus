@@ -43,7 +43,12 @@ func (c *Client) Send(data []byte) ([]byte, error) {
 	// 清空缓冲区
 	c.ml.Lock()
 	defer c.ml.Unlock()
-	c.serialPort.Flush()
+	if c.serialPort == nil {
+		return nil, fmt.Errorf("serialPort is nil")
+	}
+	if err := c.serialPort.Flush(); err != nil {
+		return nil, err
+	}
 	n, err := c.serialPort.Write(data)
 	if err != nil {
 		return nil, err
@@ -70,12 +75,16 @@ func (c *Client) Send(data []byte) ([]byte, error) {
 }
 
 func (c *Client) Close() {
-	c.serialPort.Close()
+	if c.serialPort != nil {
+		c.serialPort.Close()
+	}
 }
 
 // 重新连接
 func (c *Client) Reconnect() error {
-	c.serialPort.Close()
+	if c.serialPort != nil {
+		c.serialPort.Close()
+	}
 	s, err := serial.OpenPort(c.serialPortConfig)
 	if err != nil {
 		return err
