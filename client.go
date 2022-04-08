@@ -26,14 +26,20 @@ type Client struct {
 	serialPortName   string
 	showLog          bool
 
+	//发送前延迟 默认 100ms
+	DelayRtsBeforeSend time.Duration
+
 	BaudRate int
-	ml       sync.Mutex
+	// 同步锁
+	ml sync.Mutex
 }
 
 func NewClient(c *serial.Config) (*Client, error) {
-	// c := &serial.Config{Name: "COM3", Baud: 9600, StopBits: 1, Parity: serial.ParityNone}
 	s, err := serial.OpenPort(c)
 	cc := &Client{serialPort: s, serialPortConfig: c, serialPortName: c.Name, BaudRate: c.Baud}
+	if cc.DelayRtsBeforeSend == 0 {
+		cc.DelayRtsBeforeSend = time.Millisecond * 100
+	}
 	cc.showLog = false
 	return cc, err
 }
@@ -43,6 +49,7 @@ func (c *Client) Send(data []byte) ([]byte, error) {
 	// 清空缓冲区
 	c.ml.Lock()
 	defer c.ml.Unlock()
+	time.Sleep(c.DelayRtsBeforeSend)
 	if c.serialPort == nil {
 		return nil, fmt.Errorf("serialPort is nil")
 	}
@@ -120,14 +127,9 @@ func (c *Client) WriteSingleCoil(slaveID byte, address uint16, isOn bool) error 
 	data := []byte{slaveID, FuncCodeWriteSingleCoil}
 	data = append(data, uint162Bytes(address, value)...)
 	data = crc16(data)
-	if c.showLog {
-		log.Printf("WriteSingleCoil: 发送[% x]", data)
-	}
+	c.Printf("WriteSingleCoil: 发送[% x]", data)
 	res, err := c.Send(data)
-
-	if c.showLog {
-		log.Printf("WriteSingleCoil: 接收[% x]", res)
-	}
+	c.Printf("WriteSingleCoil: 接收[% x]", res)
 
 	if err != nil {
 		return err
@@ -140,13 +142,9 @@ func (c *Client) WriteSingleRegister(slaveID byte, address, value uint16) error 
 	data := []byte{slaveID, FuncCodeWriteSingleRegister}
 	data = append(data, uint162Bytes(address, value)...)
 	data = crc16(data)
-	if c.showLog {
-		log.Printf("WriteSingleRegister: 发送[% x]", data)
-	}
+	c.Printf("WriteSingleRegister: 发送[% x]", data)
 	res, err := c.Send(data)
-	if c.showLog {
-		log.Printf("WriteSingleRegister: 接收[% x]", res)
-	}
+	c.Printf("WriteSingleRegister: 接收[% x]", res)
 	return err
 }
 
@@ -155,14 +153,10 @@ func (c *Client) ReadHoldingRegisters(slaveID byte, address, quantity uint16) (r
 	data := []byte{slaveID, FuncCodeReadHoldingRegisters}
 	data = append(data, uint162Bytes(address, quantity)...)
 	data = crc16(data)
-	if c.showLog {
-		log.Printf("ReadHoldingRegisters: 发送[% x]", data)
-	}
+	c.Printf("ReadHoldingRegisters: 发送[% x]", data)
 	res, err := c.Send(data)
+	c.Printf("ReadHoldingRegisters: 接收[% x]", res)
 
-	if c.showLog {
-		log.Printf("ReadHoldingRegisters: 接收[% x]", res)
-	}
 	//取出数据
 	if err != nil {
 		return nil, err
@@ -184,14 +178,9 @@ func (c *Client) ReadCoils(slaveID byte, address, quantity uint16) (results []by
 	data := []byte{slaveID, FuncCodeReadCoils}
 	data = append(data, uint162Bytes(address, quantity)...)
 	data = crc16(data)
-	if c.showLog {
-		log.Printf("ReadCoils: 发送[% x]", data)
-	}
+	c.Printf("ReadCoils: 发送[% x]", data)
 	res, err := c.Send(data)
-
-	if c.showLog {
-		log.Printf("ReadCoils: 接收[% x]", res)
-	}
+	c.Printf("ReadCoils: 接收[% x]", res)
 	//取出数据
 	if err != nil {
 		return nil, err
@@ -213,14 +202,9 @@ func (c *Client) ReadDiscreteInputs(slaveID byte, address, quantity uint16) (res
 	data := []byte{slaveID, FuncCodeReadDiscreteInputs}
 	data = append(data, uint162Bytes(address, quantity)...)
 	data = crc16(data)
-	if c.showLog {
-		log.Printf("ReadDiscreteInputs: 发送[% x]", data)
-	}
+	c.Printf("ReadDiscreteInputs: 发送[% x]", data)
 	res, err := c.Send(data)
-
-	if c.showLog {
-		log.Printf("ReadDiscreteInputs: 接收[% x]", res)
-	}
+	c.Printf("ReadDiscreteInputs: 接收[% x]", res)
 
 	//取出数据
 	if err != nil {
@@ -236,4 +220,11 @@ func (c *Client) ReadDiscreteInputs(slaveID byte, address, quantity uint16) (res
 		return nil, fmt.Errorf("功能码不一致")
 	}
 	return res[3 : len(res)-2], err
+}
+
+// 日志打印
+func (c *Client) Printf(format string, v ...interface{}) {
+	if c.showLog {
+		log.Printf(format, v...)
+	}
 }
