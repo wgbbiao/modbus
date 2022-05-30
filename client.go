@@ -20,6 +20,23 @@ const (
 	FuncCodeWriteMultipleRegisters = 16
 )
 
+// proto address limit.
+const (
+	AddressBroadCast = 0
+	AddressMin       = 1
+	AddressMax       = 247
+
+	// Bits
+	WriteRegQuantityMin = 1   // 1
+	WriteRegQuantityMax = 123 // 0x007b
+)
+
+// ProtocolDataUnit (PDU) is independent of underlying communication layers.
+type ProtocolDataUnit struct {
+	FuncCode byte
+	Data     []byte
+}
+
 type Client struct {
 	serialPort       *serial.Port
 	serialPortConfig *serial.Config
@@ -32,11 +49,21 @@ type Client struct {
 	BaudRate int
 	// 同步锁
 	ml sync.Mutex
+
+	addressMin byte
+	addressMax byte
 }
 
 func NewClient(c *serial.Config) (*Client, error) {
 	s, err := serial.OpenPort(c)
-	cc := &Client{serialPort: s, serialPortConfig: c, serialPortName: c.Name, BaudRate: c.Baud}
+	cc := &Client{
+		serialPort:       s,
+		serialPortConfig: c,
+		serialPortName:   c.Name,
+		BaudRate:         c.Baud,
+		addressMax:       AddressMax,
+		addressMin:       AddressMin,
+	}
 	if cc.DelayRtsBeforeSend == 0 {
 		cc.DelayRtsBeforeSend = time.Millisecond * 100
 	}
@@ -171,6 +198,53 @@ func (c *Client) ReadHoldingRegisters(slaveID byte, address, quantity uint16) (r
 		return nil, fmt.Errorf("功能码不一致")
 	}
 	return bytes2Uint16(res[3 : len(res)-2]), err
+}
+
+// Request:
+//  Slave Id              : 1 byte
+//  Function code         : 1 byte (0x10)
+//  Starting address      : 2 bytes
+//  Quantity of outputs   : 2 bytes
+//  Byte count            : 1 byte
+//  Registers value       : N* bytes
+// Response:
+//  Function code         : 1 byte (0x10)
+//  Starting address      : 2 bytes
+//  Quantity of registers : 2 bytes
+func (c *Client) WriteMultipleRegistersBytes(slaveID byte, address, quantity uint16, value []byte) error {
+	if slaveID > c.addressMax {
+		return fmt.Errorf("modbus: slaveID '%v' must be between '%v' and '%v'",
+			slaveID, AddressBroadCast, c.addressMax)
+	}
+	if quantity < WriteRegQuantityMin || quantity > WriteRegQuantityMax {
+		return fmt.Errorf("modbus: quantity '%v' must be between '%v' and '%v'",
+			quantity, WriteRegQuantityMin, WriteRegQuantityMax)
+	}
+
+	if len(value) != int(quantity*2) {
+		return fmt.Errorf("modbus: value length '%v' does not twice as quantity '%v'", len(value), quantity)
+	}
+	data := []byte{slaveID, FuncCodeWriteMultipleRegisters}
+	data = append(data, pduDataBlockSuffix(value, address, quantity)...)
+	data = crc16(data)
+
+	c.Printf("WriteMultipleRegistersBytes: 发送[% x]", data)
+	res, err := c.Send(data)
+	c.Printf("WriteMultipleRegistersBytes: 接收[% x]", res)
+	//取出数据
+	if err != nil {
+		return err
+	}
+	if len(res) < 4 {
+		return fmt.Errorf("数据长度不够")
+	}
+	if res[0] != slaveID {
+		return fmt.Errorf("从机ID不一致")
+	}
+	if res[1] != FuncCodeWriteMultipleRegisters {
+		return fmt.Errorf("功能码不一致")
+	}
+	return err
 }
 
 // ReadCoils读取远程设备中线圈的1到2000个连续状态，并返回线圈状态。
