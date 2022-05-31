@@ -137,7 +137,7 @@ func (sf *Client) calculateDelay(chars int) time.Duration {
 		characterDelay = 15000000 / sf.BaudRate
 		frameDelay = 35000000 / sf.BaudRate
 	}
-	return time.Duration(characterDelay*chars+frameDelay) * time.Microsecond * 8
+	return time.Duration(characterDelay*chars+frameDelay) * time.Microsecond * 2
 }
 
 // 开启log
