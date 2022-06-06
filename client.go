@@ -53,26 +53,37 @@ type Client struct {
 	addressMin byte
 	addressMax byte
 
-	// 延时倍数
-	DelayTimes int
+	// 默认延时倍数
+	DefaultDelayReadTimes int64
+	// 读操作每一个地址的延时倍数
+	DelayReadTimes map[uint]int64
 }
 
 func NewClient(c *serial.Config) (*Client, error) {
 	s, err := serial.OpenPort(c)
 	cc := &Client{
-		serialPort:       s,
-		serialPortConfig: c,
-		serialPortName:   c.Name,
-		BaudRate:         c.Baud,
-		addressMax:       AddressMax,
-		addressMin:       AddressMin,
-		DelayTimes:       2,
+		serialPort:            s,
+		serialPortConfig:      c,
+		serialPortName:        c.Name,
+		BaudRate:              c.Baud,
+		addressMax:            AddressMax,
+		addressMin:            AddressMin,
+		DefaultDelayReadTimes: 2,
 	}
+	cc.DelayReadTimes = make(map[uint]int64)
 	if cc.DelayRtsBeforeSend == 0 {
 		cc.DelayRtsBeforeSend = time.Millisecond * 100
 	}
 	cc.showLog = false
 	return cc, err
+}
+
+func (c *Client) GetDelayTimes(address uint) int64 {
+	delayTimes, ok := c.DelayReadTimes[address]
+	if ok {
+		return delayTimes
+	}
+	return c.DefaultDelayReadTimes
 }
 
 //发送
@@ -96,7 +107,7 @@ func (c *Client) Send(data []byte) ([]byte, error) {
 	}
 	bytesToRead := calculateResponseLength(data)
 
-	time.Sleep(c.calculateDelay(len(data) + bytesToRead))
+	time.Sleep(c.calculateDelay(len(data)+bytesToRead, data[0]))
 
 	buf := make([]byte, 64)
 	n, err = c.serialPort.Read(buf)
@@ -131,7 +142,7 @@ func (c *Client) Reconnect() error {
 	return nil
 }
 
-func (sf *Client) calculateDelay(chars int) time.Duration {
+func (sf *Client) calculateDelay(chars int, slaveID byte) time.Duration {
 	var characterDelay, frameDelay int // us
 
 	if sf.BaudRate <= 0 || sf.BaudRate > 19200 {
@@ -141,7 +152,7 @@ func (sf *Client) calculateDelay(chars int) time.Duration {
 		characterDelay = 15000000 / sf.BaudRate
 		frameDelay = 35000000 / sf.BaudRate
 	}
-	return time.Duration(characterDelay*chars+frameDelay) * time.Microsecond * time.Duration(sf.DelayTimes)
+	return time.Duration(characterDelay*chars+frameDelay) * time.Microsecond * time.Duration(sf.GetDelayTimes(uint(slaveID)))
 }
 
 // 开启log
