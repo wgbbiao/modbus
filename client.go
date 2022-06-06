@@ -52,6 +52,9 @@ type Client struct {
 
 	addressMin byte
 	addressMax byte
+
+	// 延时倍数
+	DelayTimes int
 }
 
 func NewClient(c *serial.Config) (*Client, error) {
@@ -63,6 +66,7 @@ func NewClient(c *serial.Config) (*Client, error) {
 		BaudRate:         c.Baud,
 		addressMax:       AddressMax,
 		addressMin:       AddressMin,
+		DelayTimes:       2,
 	}
 	if cc.DelayRtsBeforeSend == 0 {
 		cc.DelayRtsBeforeSend = time.Millisecond * 100
@@ -137,7 +141,7 @@ func (sf *Client) calculateDelay(chars int) time.Duration {
 		characterDelay = 15000000 / sf.BaudRate
 		frameDelay = 35000000 / sf.BaudRate
 	}
-	return time.Duration(characterDelay*chars+frameDelay) * time.Microsecond * 2
+	return time.Duration(characterDelay*chars+frameDelay) * time.Microsecond * time.Duration(sf.DelayTimes)
 }
 
 // 开启log
