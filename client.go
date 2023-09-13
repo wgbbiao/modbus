@@ -86,7 +86,7 @@ func (c *Client) GetDelayTimes(address uint) int64 {
 	return c.DefaultDelayReadTimes
 }
 
-//发送
+// 发送
 func (c *Client) Send(data []byte) ([]byte, error) {
 	// 清空缓冲区
 	c.ml.Lock()
@@ -212,20 +212,28 @@ func (c *Client) ReadHoldingRegisters(slaveID byte, address, quantity uint16) (r
 	if res[1] != FuncCodeReadHoldingRegisters {
 		return nil, fmt.Errorf("功能码不一致")
 	}
+	// 进行crc校验
+	res2 := crc16(res[:len(res)-2])
+	if res[len(res)-2] != res2[len(res2)-2] || res[len(res)-1] != res2[len(res2)-1] {
+		return nil, fmt.Errorf("crc校验失败")
+	}
 	return bytes2Uint16(res[3 : len(res)-2]), err
 }
 
 // Request:
-//  Slave Id              : 1 byte
-//  Function code         : 1 byte (0x10)
-//  Starting address      : 2 bytes
-//  Quantity of outputs   : 2 bytes
-//  Byte count            : 1 byte
-//  Registers value       : N* bytes
+//
+//	Slave Id              : 1 byte
+//	Function code         : 1 byte (0x10)
+//	Starting address      : 2 bytes
+//	Quantity of outputs   : 2 bytes
+//	Byte count            : 1 byte
+//	Registers value       : N* bytes
+//
 // Response:
-//  Function code         : 1 byte (0x10)
-//  Starting address      : 2 bytes
-//  Quantity of registers : 2 bytes
+//
+//	Function code         : 1 byte (0x10)
+//	Starting address      : 2 bytes
+//	Quantity of registers : 2 bytes
 func (c *Client) WriteMultipleRegistersBytes(slaveID byte, address, quantity uint16, value []byte) error {
 	if slaveID > c.addressMax {
 		return fmt.Errorf("modbus: slaveID '%v' must be between '%v' and '%v'",
