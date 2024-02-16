@@ -236,7 +236,7 @@ func (c *Client) ReadInputRegisters(slaveID byte, address, quantity uint16) (res
 		err = fmt.Errorf("modbus: quantity '%v' must be between '%v' and '%v',", quantity, 1, 125)
 		return
 	}
-	data := []byte{slaveID, FuncCodeReadHoldingRegisters}
+	data := []byte{slaveID, FuncCodeReadInputRegisters}
 	data = append(data, uint162Bytes(address, quantity)...)
 	data = crc16(data)
 	c.Printf("ReadHoldingRegisters: 发送[% x]", data)
@@ -256,7 +256,7 @@ func (c *Client) ReadInputRegisters(slaveID byte, address, quantity uint16) (res
 	if res[0] != slaveID {
 		return nil, fmt.Errorf("从机ID不一致")
 	}
-	if res[1] != FuncCodeReadHoldingRegisters {
+	if res[1] != FuncCodeReadInputRegisters {
 		return nil, fmt.Errorf("功能码不一致")
 	}
 	// 进行crc校验
