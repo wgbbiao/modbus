@@ -221,14 +221,17 @@ func (c *Client) ReadHoldingRegisters(slaveID byte, address, quantity uint16) (r
 }
 
 // Request:
-//  Function code         : 1 byte (0x04)
-//  Starting address      : 2 bytes
-//  Quantity of registers : 2 bytes
+//
+//	Function code         : 1 byte (0x04)
+//	Starting address      : 2 bytes
+//	Quantity of registers : 2 bytes
+//
 // Response:
-//  Function code         : 1 byte (0x04)
-//  Byte count            : 1 byte
-//  Input registers       : N bytes
-func (c *client) ReadInputRegisters(address, quantity uint16) (results []byte, err error) {
+//
+//	Function code         : 1 byte (0x04)
+//	Byte count            : 1 byte
+//	Input registers       : N bytes
+func (c *Client) ReadInputRegisters(slaveID byte, address, quantity uint16) (results []uint16, err error) {
 	if quantity < 1 || quantity > 125 {
 		err = fmt.Errorf("modbus: quantity '%v' must be between '%v' and '%v',", quantity, 1, 125)
 		return
@@ -237,21 +240,31 @@ func (c *client) ReadInputRegisters(address, quantity uint16) (results []byte, e
 	data = append(data, uint162Bytes(address, quantity)...)
 	data = crc16(data)
 	c.Printf("ReadHoldingRegisters: 发送[% x]", data)
-	response, err := c.Send(data)
+	res, err := c.Send(data)
 	c.Printf("ReadHoldingRegisters: 接收[% x]", res)
 
-	// response, err := mb.send(&request)
 	if err != nil {
 		return
 	}
-	count := int(response.Data[0])
-	length := len(response.Data) - 1
-	if count != length {
-		err = fmt.Errorf("modbus: response data size '%v' does not match count '%v'", length, count)
-		return
+	//取出数据
+	if err != nil {
+		return nil, err
 	}
-	results = response.Data[1:]
-	return
+	if len(res) < 4 {
+		return nil, fmt.Errorf("数据长度不够")
+	}
+	if res[0] != slaveID {
+		return nil, fmt.Errorf("从机ID不一致")
+	}
+	if res[1] != FuncCodeReadHoldingRegisters {
+		return nil, fmt.Errorf("功能码不一致")
+	}
+	// 进行crc校验
+	res2 := crc16(res[:len(res)-2])
+	if res[len(res)-2] != res2[len(res2)-2] || res[len(res)-1] != res2[len(res2)-1] {
+		return nil, fmt.Errorf("crc校验失败")
+	}
+	return bytes2Uint16(res[3 : len(res)-2]), err
 }
 
 // Request:
